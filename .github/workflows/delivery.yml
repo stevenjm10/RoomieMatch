@@ -1,0 +1,30 @@
+name: Delivery package
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+  package:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build and export backend image
+        run: |
+          docker build -t roomiematch-api:${{ github.sha }} backend
+          docker save roomiematch-api:${{ github.sha }} | gzip > roomiematch-api.tar.gz
+          sha256sum roomiematch-api.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-image
+          path: |
+            roomiematch-api.tar.gz
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+      - name: Delivery summary
+        run: echo 'Validated frontend and backend artifacts are ready. Hosting deployment remains pending; no production service was published.' >> "$GITHUB_STEP_SUMMARY"
